@@ -1,16 +1,26 @@
-# This is a sample Python script.
+from pyspark import SparkConf
+from pyspark.sql import SparkSession, Window
+import pyspark.sql.types as t
+import pyspark.sql.functions as f
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+spark_session = (SparkSession.builder
+                 .master("local")
+                 .appName("task app")
+                 .config(conf=SparkConf())
+                 .getOrCreate())
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+data = [("Tonya", 18), ("Nina", 41)]
+schema = t.StructType([
+    t.StructField("name", t.StringType(), True),
+    t.StructField("age", t.IntegerType(), True)
+])
+df = spark_session.createDataFrame(data, schema)
+df.show()
+
+df.printSchema()
+
+df.explain(mode="extended")
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
