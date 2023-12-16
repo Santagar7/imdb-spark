@@ -6,4 +6,6 @@ class DatasetsDirectories:
     basics = "../data/title.basics.tsv"
     crew = "../data/title.crew.tsv"
     principals = "../data/title.principals.tsv"
+    episodes = "../data/title.episode.tsv"
+    akas = "../data/title.akas.tsv"
     name_basics = "../data/name.basics.tsv"
