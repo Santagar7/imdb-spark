@@ -128,3 +128,139 @@ class Question:
         rating_deviation.select(ColumnNames.tconst, ColumnNames.primaryTitle, ColumnNames.startYear, ColumnNames.genres,
                                 ColumnNames.averageRating, ColumnNames.avg_genre_rating,
                                 ColumnNames.rating_deviation).show()
+
+    def top_20_actors_most_episodes(self):
+        # Question #8 ------------------------------------------------------------------
+        # Які актори знімалися у найбільшій кількості епізодів одного серіалу за останні 10 років?
+        current_year = 2023
+        last_10_years = self.title_basics.filter(
+            (f.col(ColumnNames.startYear) >= (current_year - 10)) & (f.col(ColumnNames.titleType) == "tvSeries")
+        )
+        episodes_count = self.title_principals.join(
+            last_10_years, self.title_principals.tconst == last_10_years.tconst
+        ).filter(
+            f.col(ColumnNames.category).isin(["actor", "actress"])
+        ).groupBy(ColumnNames.nconst).count()
+
+        top_20_actors = episodes_count.join(
+            self.name_basics, episodes_count.nconst == self.name_basics.nconst
+        ).select(
+            ColumnNames.primaryName, ColumnNames.count
+        ).orderBy(f.desc(ColumnNames.count)).limit(20)
+
+        top_20_actors.show()
+
+    def actors_with_worst_ratings(self):
+        # Question #9 ------------------------------------------------------------------
+        # Які актори мають найгірші середні оцінки серед фільмів, у яких вони знімалися, при умові, що вони знялися у більш ніж 50 проектах?
+        actors = self.title_principals.alias("actors")
+        ratings = self.title_ratings.alias("ratings")
+
+        actors_ratings = actors.join(
+            ratings,
+            actors[ColumnNames.tconst] == ratings[ColumnNames.tconst]
+        ).filter(
+            f.col(ColumnNames.category).isin(["actor", "actress"])
+        )
+
+        actor_avg_ratings = actors_ratings.groupBy("actors.nconst").agg(
+            f.avg("ratings.averageRating").alias("avg_rating"),
+            f.count("actors.tconst").alias("num_projects")
+        )
+
+        experienced_actors = actor_avg_ratings.filter(
+            f.col("num_projects") > 50
+        )
+
+        worst_rated_actors = experienced_actors.join(
+            self.name_basics,
+            experienced_actors[ColumnNames.nconst] == self.name_basics[ColumnNames.nconst]
+        ).select(
+            ColumnNames.primaryName, "avg_rating", "num_projects"
+        ).orderBy("avg_rating")
+
+        worst_rated_actors.show()
+
+    def actors_most_improved_rating(self):
+        # Question #10 ------------------------------------------------------------------
+        # Які актори мають найбільший приріст середньої оцінки в порівнянні з першим та останнім фільмом, у яких вони знімалися?
+        actors_with_titles = self.title_principals.join(
+            self.title_basics, self.title_principals.tconst == self.title_basics.tconst
+        ).join(
+            self.title_ratings, self.title_principals.tconst == self.title_ratings.tconst
+        )
+
+        window_spec = Window.partitionBy(ColumnNames.nconst).orderBy(ColumnNames.startYear)
+
+        actors_rating_improvement = actors_with_titles.withColumn(
+            "first_rating", f.first(ColumnNames.averageRating).over(window_spec)
+        ).withColumn(
+            "last_rating", f.last(ColumnNames.averageRating).over(window_spec)
+        ).withColumn(
+            "rating_improvement", f.col("last_rating") - f.col("first_rating")
+        )
+
+        top_actors_by_improvement = actors_rating_improvement.groupBy(ColumnNames.nconst).agg(
+            f.max("rating_improvement").alias("max_improvement")
+        )
+
+        top_actors_by_improvement = top_actors_by_improvement.join(
+            self.name_basics,
+            top_actors_by_improvement[ColumnNames.nconst] == self.name_basics[ColumnNames.nconst]
+        ).select(
+            "primaryName", "max_improvement"
+        ).orderBy(f.desc("max_improvement"))
+
+        top_actors_by_improvement.show()
+
+    def actors_most_genres(self):
+        # Question #11 ------------------------------------------------------------------
+        # Які актори знімалися у найбільшій кількості жанрів?
+        exploded_genres = self.title_basics.withColumn(ColumnNames.genre, f.explode(ColumnNames.genres))
+        actor_genres = self.title_principals.join(
+            exploded_genres, self.title_principals.tconst == exploded_genres.tconst
+        ).filter(f.col(ColumnNames.category).isin(["actor", "actress"]))
+        genre_count = actor_genres.groupBy(ColumnNames.nconst).agg(
+            f.countDistinct(ColumnNames.genre).alias("genre_count")
+        )
+        actors_names = genre_count.join(
+            self.name_basics,
+            genre_count.nconst == self.name_basics.nconst
+        ).select(
+            ColumnNames.primaryName, "genre_count"
+        ).orderBy(f.desc("genre_count"))
+        actors_names.show()
+
+    def directors_most_actors(self):
+        # Question #12 ------------------------------------------------------------------
+        # Які режисери працювали з найбільшою кількістю різних акторів?
+        actors_per_director = self.title_principals.join(
+            self.title_crew, self.title_principals.tconst == self.title_crew.tconst
+        ).filter(f.col(ColumnNames.category).isin(["actor", "actress"]))
+        unique_actors = actors_per_director.groupBy(ColumnNames.directors).agg(
+            f.countDistinct(ColumnNames.nconst).alias("unique_actors_count")
+        )
+        directors_names = unique_actors.join(
+            self.name_basics,
+            unique_actors.directors == self.name_basics.nconst
+        ).select(
+            ColumnNames.primaryName, "unique_actors_count"
+        ).orderBy(f.desc("unique_actors_count"))
+        directors_names.show()
+
+    def actors_most_directors(self):
+        # Question #13 ------------------------------------------------------------------
+        # Які актори працювали з найбільшою кількістю різних режисерів?
+        directors_per_actor = self.title_principals.join(
+            self.title_crew, self.title_principals.tconst == self.title_crew.tconst
+        ).filter(f.col(ColumnNames.category).isin(["actor", "actress"]))
+        unique_directors = directors_per_actor.groupBy(ColumnNames.nconst).agg(
+            f.countDistinct(ColumnNames.directors).alias("unique_directors_count")
+        )
+        unique_directors = unique_directors.join(
+            self.name_basics,
+            unique_directors.nconst == self.name_basics.nconst
+        ).select(
+            ColumnNames.primaryName, "unique_directors_count"
+        ).orderBy(f.desc("unique_directors_count"))
+        unique_directors.show()
