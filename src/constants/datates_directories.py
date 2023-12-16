@@ -1,5 +1,0 @@
-ratings_directory = "./data/title.ratings.tsv"
-basics_directory = "./data/title.basics.tsv"
-crew_directory = "./data/title.crew.tsv"
-principals_directory = "./data/title.principals.tsv"
-name_basics_directory = "./data/name.basics.tsv"
