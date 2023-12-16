@@ -271,6 +271,8 @@ class Question:
         unique_directors.show()
 
     def series_with_most_episodes(self):
+        # Question #14 ------------------------------------------------------------------
+        # Які є серіали з найбульшою кількістю епізодів?
         window_spec = Window.partitionBy(ColumnNames.parentTconst)
         episode_count = self.title_episodes.withColumn("episodeCount",
                                                        f.count(ColumnNames.episodeNumber).over(window_spec))
@@ -283,20 +285,21 @@ class Question:
         top_series_with_names.show()
 
     def shortest_movies(self):
-        # Вибираємо тільки ті записи, де тривалість вказана
+        # Question #15 ------------------------------------------------------------------
+        # Які фільми мають найкоротшу тривалівсть?
         non_null_movies = self.title_basics.filter(self.title_basics[ColumnNames.runtimeMinutes].isNotNull())
 
-        # Використовуємо Window function для сортування фільмів за тривалістю
         window_spec = Window.partitionBy(ColumnNames.titleType).orderBy(ColumnNames.runtimeMinutes)
         shortest_movies_ranked = non_null_movies.withColumn("rank", f.row_number().over(window_spec))
 
-        # Відбираємо топ 10 найкоротших фільмів
         shortest_movies = shortest_movies_ranked.filter(shortest_movies_ranked.rank <= 10).select(
             ColumnNames.primaryTitle, ColumnNames.runtimeMinutes)
 
         shortest_movies.show()
 
     def actors_with_biggest_rating_difference(self):
+        # Question #16 ------------------------------------------------------------------
+        #  Які актори мають найбільшу різницю у рейтингах між своїм кращим та гіршим фільмом?
         window_spec = Window.partitionBy(self.title_principals[ColumnNames.nconst])
         actors_movies_with_ratings = self.title_principals.join(self.title_ratings,
                                                                 self.title_principals[ColumnNames.tconst] ==
@@ -312,6 +315,8 @@ class Question:
         top_actors_by_rating_diff.show()
 
     def movies_with_most_adaptations(self):
+        # Question #17 ------------------------------------------------------------------
+        # Які фільми мають найбільшу кількість адаптацій?
         window_spec = Window.partitionBy(ColumnNames.titleId)
         adaptations_count = self.title_akas.withColumn("adaptationsCount", f.count(ColumnNames.title).over(window_spec))
         top_movies_by_adaptations = adaptations_count.groupBy(ColumnNames.titleId).agg(
@@ -323,6 +328,8 @@ class Question:
         top_movies_with_names.show()
 
     def actors_with_longest_careers(self):
+        # Question #18 ------------------------------------------------------------------
+        # Які актори мають найдовшу кар'єру?
         actors_career_length = self.name_basics.withColumn("careerLength",
                                                            f.col(ColumnNames.deathYear) - f.col(ColumnNames.birthYear))
         window_spec = Window.orderBy(f.desc("careerLength"))
@@ -331,18 +338,18 @@ class Question:
         top_actors_by_career_length.select(ColumnNames.primaryName, "careerLength").show()
 
     def actors_in_most_animated_movies(self):
+        # Question #19 ------------------------------------------------------------------
+        # Які актори знімалися у найбільшій кількості анімаційних фільмів?
         animated_movies = self.title_basics.filter(f.array_contains(f.col(ColumnNames.genres), "Animation"))
         actors_in_animated = animated_movies.join(self.title_principals,
                                                   animated_movies[ColumnNames.tconst] == self.title_principals[
                                                       ColumnNames.tconst])
 
-        # Вказуємо конкретну таблицю для tconst
         window_spec = Window.partitionBy(self.title_principals[ColumnNames.nconst])
         actors_count = actors_in_animated.withColumn("animatedCount",
                                                      f.count(self.title_principals[ColumnNames.tconst]).over(
                                                          window_spec))
 
-        # Явно вказуємо таблицю для nconst
         top_actors_in_animated = actors_count.join(self.name_basics,
                                                    actors_count[ColumnNames.nconst] == self.name_basics[
                                                        ColumnNames.nconst]).groupBy(
