@@ -77,6 +77,7 @@ class Question:
         top_actors_movies.show()
 
     def most_common_professions(self):
+
         # Question #5 ------------------------------------------------------------------
         # Які професії найчастіше зустрічаються серед акторів/режисерів?
 
