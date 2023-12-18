@@ -23,7 +23,7 @@ questions.series_with_most_episodes()
 questions.shortest_movies()
 questions.actors_with_biggest_rating_difference()
 questions.movies_with_most_adaptations()
-questions.actors_with_longest_careers()
+questions.people_with_longest_careers()
 questions.actors_in_most_animated_movies()
 
 questions.top_5_writers_between_1939_and_1945_and_the_most_popular_genre_by_them()
@@ -32,4 +32,3 @@ questions.top_5_movies_by_votes_per_year()
 questions.youngest_actors_and_actresses()
 questions.movies_produced_each_year_and_average_runtime()
 questions.average_rating_of_drama_movies_in_ukraine_and_usa()
-
