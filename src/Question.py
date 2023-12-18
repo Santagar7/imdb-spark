@@ -1,6 +1,6 @@
 import pyspark.sql.functions as f
 from pyspark import SparkConf
-from pyspark.sql import SparkSession, Window
+from pyspark.sql import SparkSession, Window, functions as F
 
 from src.TsvData import TsvData
 from src.schemas.name_basics_schema import name_basics_schema
@@ -327,15 +327,30 @@ class Question:
             ColumnNames.primaryTitle, "totalAdaptations").orderBy(f.desc("totalAdaptations")).limit(10)
         top_movies_with_names.show()
 
-    def actors_with_longest_careers(self):
+    def people_with_longest_careers(self):
         # Question #18 ------------------------------------------------------------------
-        # Які актори мають найдовшу кар'єру?
-        actors_career_length = self.name_basics.withColumn("careerLength",
-                                                           f.col(ColumnNames.deathYear) - f.col(ColumnNames.birthYear))
-        window_spec = Window.orderBy(f.desc("careerLength"))
-        top_actors_by_career_length = actors_career_length.withColumn("rank", f.row_number().over(window_spec)).filter(
-            f.col("rank") <= 10)
-        top_actors_by_career_length.select(ColumnNames.primaryName, "careerLength").show()
+        # Які люди мають найдовшу кар'єру у кіноіндустрії?
+        actors_films = self.title_principals.join(self.title_basics,
+                                                  self.title_principals[ColumnNames.tconst] == self.title_basics[
+                                                      ColumnNames.tconst], 'inner')
+
+        window_spec = Window.partitionBy(actors_films[ColumnNames.nconst])
+        actors_films = actors_films.withColumn("firstFilmYear", F.min(ColumnNames.startYear).over(window_spec)) \
+            .withColumn("lastFilmYear", F.max(ColumnNames.startYear).over(window_spec))
+
+        actors_career_years = actors_films.select(ColumnNames.nconst, "firstFilmYear", "lastFilmYear").distinct()
+
+        actors_with_names = actors_career_years.join(self.name_basics,
+                                                     actors_career_years[ColumnNames.nconst] == self.name_basics[
+                                                         ColumnNames.nconst], 'inner')
+
+        actors_with_career_length = actors_with_names.withColumn("careerLength",
+                                                                 F.col("lastFilmYear") - F.col("firstFilmYear"))
+
+        top_actors_by_career_length = actors_with_career_length.orderBy(F.desc("careerLength")).select(
+            ColumnNames.primaryName, "firstFilmYear", "lastFilmYear", "careerLength")
+
+        top_actors_by_career_length.show(truncate=False)
 
     def actors_in_most_animated_movies(self):
         # Question #19 ------------------------------------------------------------------
