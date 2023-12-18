@@ -28,7 +28,8 @@ class Question:
                                   schema=title_akas_schema).data
         self.title_basics = TsvData(path=DatasetsDirectories.basics, spark_session=self.spark_session,
                                     schema=title_basics_schema).data
-        self.title_episodes = TsvData(path=DatasetsDirectories.episodes, spark_session=self.spark_session, schema=title_episode_schema).data
+        self.title_episodes = TsvData(path=DatasetsDirectories.episodes, spark_session=self.spark_session,
+                                      schema=title_episode_schema).data
         self.title_basics = self.title_basics.withColumn(ColumnNames.genres,
                                                          f.split(f.col(ColumnNames.genres), ",").cast("array<string>"))
         self.title_crew = TsvData(path=DatasetsDirectories.crew, spark_session=self.spark_session,
@@ -378,7 +379,8 @@ class Question:
 
         title_basics_with_ratings = self.title_basics.join(self.title_ratings, ColumnNames.tconst)
         title_basics_with_ratings = title_basics_with_ratings.filter(
-            (title_basics_with_ratings[ColumnNames.startYear] >= 1939) & (title_basics_with_ratings[ColumnNames.startYear] <= 1945))
+            (title_basics_with_ratings[ColumnNames.startYear] >= 1939) &
+            (title_basics_with_ratings[ColumnNames.startYear] <= 1945))
 
         title_basics_with_ratings = title_basics_with_ratings.join(self.title_crew, ColumnNames.tconst)
         title_basics_with_ratings = title_basics_with_ratings.join(self.title_principals, ColumnNames.tconst)
@@ -387,27 +389,29 @@ class Question:
         title_basics_with_ratings = title_basics_with_ratings.filter(
             (f.array_contains(f.col(ColumnNames.primaryProfession), "writer")))
 
-        title_basics_with_ratings = title_basics_with_ratings.groupBy(ColumnNames.primaryName, ColumnNames.genres).count()
+        title_basics_with_ratings = (title_basics_with_ratings
+                                     .groupBy(ColumnNames.primaryName, ColumnNames.genres)
+                                     .count())
         title_basics_with_ratings = title_basics_with_ratings.orderBy(f.desc("count")).limit(5)
         title_basics_with_ratings.show()
 
-    def top_5_dead_directors_by_the_highest_overall_average_rating(self):
+    def top_5_dead_writers_by_the_highest_overall_average_rating(self):
         # Question #21 ------------------------------------------------------------------
-        # Які 5 режисерів, які померли, мають найвищий загальний середній рейтинг?
+        # Які 5 сценаристів, які померли, мають найвищий загальний середній рейтинг?
 
         movies_with_crew_ratings = self.title_ratings.join(self.title_crew, ColumnNames.tconst)
-        directors_avg_rating = movies_with_crew_ratings.groupBy(ColumnNames.directors).agg(
+        writers_avg_rating = movies_with_crew_ratings.groupBy(ColumnNames.writers).agg(
             f.avg(ColumnNames.averageRating).alias("avgRating"))
 
-        directors_with_names = directors_avg_rating.join(self.name_basics,
-                                                         directors_avg_rating[ColumnNames.directors] == self.name_basics[
-                                                             ColumnNames.nconst])
+        writers_with_names = writers_avg_rating.join(self.name_basics,
+                                                         writers_avg_rating[ColumnNames.writers]
+                                                         == self.name_basics[ColumnNames.nconst])
 
-        deceased_directors = directors_with_names.filter(f.col(ColumnNames.deathYear).isNotNull())
-        top_5_dead_directors = deceased_directors.select(ColumnNames.primaryName, "avgRating") \
+        deceased_writers = writers_with_names.filter(f.col(ColumnNames.deathYear).isNotNull())
+        top_5_dead_writers = deceased_writers.select(ColumnNames.primaryName, "avgRating") \
             .orderBy(f.desc("avgRating")).limit(5)
 
-        top_5_dead_directors.show()
+        top_5_dead_writers.show()
 
     def most_popular_genre_by_decade(self):
         # Question #22 ------------------------------------------------------------------
@@ -430,17 +434,19 @@ class Question:
         # Хто наймолодших акторів та актрис знімався у 2020 році та кількість фільмів знятих з їх участю?
 
         title_basics_with_ratings = self.title_basics.join(self.title_ratings, ColumnNames.tconst)
-        title_basics_with_ratings = title_basics_with_ratings.filter(title_basics_with_ratings[ColumnNames.startYear] == 2020)
+        title_basics_with_ratings = (title_basics_with_ratings
+                                     .filter(title_basics_with_ratings[ColumnNames.startYear] == 2020))
         title_basics_with_ratings = title_basics_with_ratings.join(self.title_principals, ColumnNames.tconst)
         title_basics_with_ratings = title_basics_with_ratings.join(self.name_basics, ColumnNames.nconst)
 
         title_basics_with_ratings = title_basics_with_ratings.filter(
             (f.col(ColumnNames.category) == "actor") | (f.col(ColumnNames.category) == "actress"))
 
-        title_basics_with_ratings = title_basics_with_ratings.groupBy(ColumnNames.primaryName, ColumnNames.birthYear).count()
+        title_basics_with_ratings = (title_basics_with_ratings
+                                     .groupBy(ColumnNames.primaryName, ColumnNames.birthYear).count())
         window_spec = Window.orderBy(f.desc(ColumnNames.birthYear))
         title_basics_with_ratings = title_basics_with_ratings.withColumn("rank",
-                                                                        f.row_number().over(window_spec)).filter(
+                                                                         f.row_number().over(window_spec)).filter(
             f.col("rank") <= 20)
         title_basics_with_ratings.show()
 
@@ -449,9 +455,11 @@ class Question:
         # Скільки фільмів було випущено кожного року з 2020 року, і яка середня тривалість для кожного року?
 
         title_basics_with_ratings = self.title_basics.join(self.title_ratings, ColumnNames.tconst)
-        title_basics_with_ratings = title_basics_with_ratings.filter(title_basics_with_ratings[ColumnNames.startYear] >= 2020)
+        title_basics_with_ratings = title_basics_with_ratings.filter(
+            title_basics_with_ratings[ColumnNames.startYear] >= 2020)
         title_basics_with_ratings = title_basics_with_ratings.groupBy(ColumnNames.startYear).agg(
-            f.count(ColumnNames.tconst).alias("movies_produced"), f.avg(ColumnNames.runtimeMinutes).alias("average_runtime"))
+            f.count(ColumnNames.tconst).alias("movies_produced"),
+            f.avg(ColumnNames.runtimeMinutes).alias("average_runtime"))
         title_basics_with_ratings.show()
 
     def average_rating_of_drama_movies_in_ukraine_and_usa(self):
@@ -459,10 +467,12 @@ class Question:
         # Яка середня оцінка драматичних фільмів в Україні та США з 2003 року по 2009?
 
         drama_movies = self.title_basics.filter(
-            (f.array_contains(f.col(ColumnNames.genres), "Drama")) & (f.col(ColumnNames.startYear).between(2003, 2009)))
+            (f.array_contains(f.col(ColumnNames.genres), "Drama")) &
+            (f.col(ColumnNames.startYear).between(2003, 2009)))
 
         drama_movies_with_countries = drama_movies.join(self.title_akas,
-                                                        drama_movies[ColumnNames.tconst] == self.title_akas[ColumnNames.titleId])
+                                                        drama_movies[ColumnNames.tconst] == self.title_akas[
+                                                            ColumnNames.titleId])
 
         drama_movies_ukraine_usa = drama_movies_with_countries.filter(
             (f.col(ColumnNames.region) == "UA") | (f.col(ColumnNames.region) == "US"))
@@ -472,14 +482,8 @@ class Question:
         avg_ratings = drama_movies_ratings.groupBy(ColumnNames.startYear, ColumnNames.region).agg(
             f.avg(ColumnNames.averageRating).alias("avg_rating"))
 
-        avg_ratings_pivoted = avg_ratings.groupBy(ColumnNames.startYear).pivot(ColumnNames.region).agg(f.first("avg_rating"))
+        avg_ratings_pivoted = avg_ratings.groupBy(ColumnNames.startYear).pivot(ColumnNames.region).agg(
+            f.first("avg_rating"))
 
         avg_ratings_pivoted = avg_ratings_pivoted.withColumnRenamed("UA", "ua").withColumnRenamed("US", "usa")
         avg_ratings_pivoted.select(ColumnNames.startYear, "usa", "ua").show()
-
-
-
-
-
-
-
